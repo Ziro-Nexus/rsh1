@@ -1,0 +1,3 @@
+prompt = "[RED]([PATH])[BLUE]([CURRENT_TIME]) =>"
+[EXPORT] NAME="Alex"
+
