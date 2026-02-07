@@ -12,7 +12,7 @@ use std::ffi::CString;
 use std::io::{self, Write};
 use std::ptr;
 
-use crate::{cli_config::config::RshConfig, utils::pre_processing_utils::expand_xiro_variables};
+use crate::{cli_config::config::RshConfig, rsh_builtin::builtin_commands::{check_is_command, map_and_run_cmd}, utils::pre_processing_utils::expand_xiro_variables};
 
 pub fn execute_program(stdout: &mut io::Stdout, config: &RshConfig, input: String) {
     if input.trim().is_empty() {
@@ -57,9 +57,10 @@ pub fn execute_program(stdout: &mut io::Stdout, config: &RshConfig, input: Strin
     enable_raw_mode().ok();
 }
 
-pub fn rsh_shell(
+pub async fn rsh_shell(
     config: RshConfig,
     mem_table: &mut xiro::memory_table::vartable::VariableTableInMemory,
+    ai_brain: &mut crate::brain::neural_system::XiroAIBrain,
 ) -> io::Result<()> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -80,7 +81,7 @@ pub fn rsh_shell(
                 KeyCode::Backspace => {
                     input.pop();
                 }
-                // Modifica la lógica del KeyCode::Enter dentro de rsh_shell
+
                 KeyCode::Enter => {
                     println!();
                     if input.is_empty() {
@@ -90,28 +91,38 @@ pub fn rsh_shell(
                         continue;
                     }
 
+                    execute!(stdout, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
+
+
+                    if check_is_command(input.clone().as_str()) {
+                        disable_raw_mode()?;
+                        map_and_run_cmd(&input, ai_brain).await;
+                        execute!(stdout, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
+                        print!("{}", prompt);
+                        history.push(input.clone());
+                        history_index = None;
+                        input.clear();
+                        enable_raw_mode()?;
+                        stdout.flush()?;
+                        continue;
+                    }
+
+
                     history.push(input.clone());
                     history_index = None;
-
                     execute!(stdout, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
                     disable_raw_mode()?;
                     // 1. Intentar analizar como Xiro
                     let syntax_analyzer =
                         xiro::report::generator::generate_syntax_report(input.as_str());
 
-                    // Si el generador detectó que es una operación válida de Xiro (Set o Def)
                     if syntax_analyzer.is_variable_declaration || syntax_analyzer.is_set_variable {
                         xiro::report::syntax_report_handler::ReportHandler::handle_report(
                             &syntax_analyzer,
                             mem_table,
                         );
-                        //xiro::report::syntax_report_handler::ReportHandler::print_status_report(
-                        //    &syntax_analyzer,
-                        //);
 
                     } else {
-                        // 2. Si no es Xiro puro, es un comando de Sistema o una mezcla
-                        // Aquí ocurre la magia: PRE-PROCESAMIENTO DE VARIABLES
                         let expanded_input = expand_xiro_variables(input.clone(), mem_table);
 
                         execute_program(&mut stdout, &config, expanded_input);

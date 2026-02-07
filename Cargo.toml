@@ -6,5 +6,9 @@ edition = "2024"
 [dependencies]
 crossterm = "0.27"
 nix = {version = "*", features=["process"]}
-xiro  = { path = "../xiro" }
+xiro  = { path = "../xirodsl2" }
+xiro_ai_lab = { path = "../xiro_ai_lab"}
 regex = "*"
+tokio = { version = "1", features = ["full"] }
+colored = "2"
+textwrap = "0.16"
