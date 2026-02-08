@@ -93,10 +93,10 @@ pub async fn rsh_shell(
 
                     execute!(stdout, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
 
-
                     if check_is_command(input.clone().as_str()) {
                         disable_raw_mode()?;
-                        map_and_run_cmd(&input, ai_brain).await;
+                        let expanded_input = expand_xiro_variables(input.clone(), mem_table);
+                        map_and_run_cmd(&expanded_input, ai_brain).await;
                         execute!(stdout, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
                         print!("{}", prompt);
                         history.push(input.clone());
@@ -107,12 +107,11 @@ pub async fn rsh_shell(
                         continue;
                     }
 
-
                     history.push(input.clone());
                     history_index = None;
                     execute!(stdout, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
                     disable_raw_mode()?;
-                    // 1. Intentar analizar como Xiro
+
                     let syntax_analyzer =
                         xiro::report::generator::generate_syntax_report(input.as_str());
 
@@ -124,7 +123,6 @@ pub async fn rsh_shell(
 
                     } else {
                         let expanded_input = expand_xiro_variables(input.clone(), mem_table);
-
                         execute_program(&mut stdout, &config, expanded_input);
                     }
 

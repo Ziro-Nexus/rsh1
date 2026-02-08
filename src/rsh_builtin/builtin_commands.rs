@@ -1,15 +1,14 @@
 use std::fs;
 use xiro_ai_lab::brain;
-use colored::*; // Necesitarás añadir `colored = "2"` a tu Cargo.toml
+use colored::*;
 
 fn print_side_by_side(ascii_path: &str, message: &str) {
     let ascii_art = fs::read_to_string(ascii_path).unwrap_or_else(|_| " [AI] ".to_string());
-    let terminal_width = 50; // Ajusta según el ancho de tu ASCII
+    let terminal_width = 50;
 
     let ascii_lines: Vec<&str> = ascii_art.lines().collect();
 
-    // Dividimos el mensaje de la IA en fragmentos para que no desborde la pantalla
-    let wrapped_message = textwrap::fill(message, 60); // Necesitas la crate 'textwrap'
+    let wrapped_message = textwrap::fill(message, 60);
     let msg_lines: Vec<&str> = wrapped_message.lines().collect();
 
     let max_lines = std::cmp::max(ascii_lines.len(), msg_lines.len());
@@ -18,7 +17,6 @@ fn print_side_by_side(ascii_path: &str, message: &str) {
     for i in 0..max_lines {
         let ascii_part = ascii_lines.get(i).unwrap_or(&"");
         let msg_part = msg_lines.get(i).unwrap_or(&"");
-        // Imprime la línea del ASCII en cyan y el mensaje en blanco brillante
         println!(
             "{:width$}   {}",
             ascii_part.bright_cyan(),
@@ -35,7 +33,25 @@ pub fn check_is_command(input: &str) -> bool {
         return false;
     }
     let first_word = trimmed.split_whitespace().next().unwrap();
-    matches!(first_word, "@create_neuron" | "@talk" | "@help" | "@list_neurons")
+    matches!(first_word,
+        "@create_neuron" |
+        "@talk" |
+        "@help" |
+        "@list_neurons" |
+        "cd" |
+        "exit"
+    )
+}
+
+pub fn change_directory(path: &str) {
+    if let Err(e) = std::env::set_current_dir(path) {
+        println!(" {} Failed to change directory: {}", "⚠".red(), e);
+    }
+}
+
+pub fn exit_shell() {
+    println!(" {} Exiting Rsh... Goodbye!", "👋".green());
+    std::process::exit(0);
 }
 
 pub async fn map_and_run_cmd(input: &str, brain: &mut brain::neural_system::XiroAIBrain) {
@@ -43,6 +59,16 @@ pub async fn map_and_run_cmd(input: &str, brain: &mut brain::neural_system::Xiro
     let command = parts.get(0).cloned();
 
     match command {
+        Some("exit") => {
+            exit_shell();
+        },
+        Some("cd") => {
+            if parts.len() < 2 {
+                println!(" {} {}", "⚠".yellow(), "Use: cd <path>".yellow());
+                return;
+            }
+            change_directory(parts[1]);
+        },
         Some("@create_neuron") => {
             if parts.len() < 3 {
                 println!("{}", " ✘ Error ".on_red().white().bold());
